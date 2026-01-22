@@ -92,14 +92,10 @@ def update_webinar(data: dict):
 
     success = 0
     status = "ok"
-    print(data)
-    print(data["names"])
     for i in range(len(data["emails"])):
         email = data["emails"][i]
         name = data["names"][i]
         try:
-            print(email)
-            print(name)
             r = register_email(token, webinar_id, email, name)
             if r["status code"] == 201 : 
                 success += 1
