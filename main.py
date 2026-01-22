@@ -27,14 +27,6 @@ ZOOM_CLIENT_ID = os.getenv("ZOOM_CLIENT_ID")
 ZOOM_CLIENT_SECRET = os.getenv("ZOOM_CLIENT_SECRET")
 
 # ------------------------
-# MODELS
-# ------------------------
-class WebinarUpdateRequest(BaseModel):
-    webinar_name: str
-    webinar_date: str  # YYYY-MM-DD
-    emails: list[str]
-
-# ------------------------
 # AUTH ZOOM
 # ------------------------
 def get_zoom_token():
@@ -50,27 +42,6 @@ def get_zoom_token():
     )
     r.raise_for_status()
     return r.json()["access_token"]
-
-# ------------------------
-# GET WEBINARS
-# ------------------------
-def find_webinar(token, name, date_str):
-    headers = {"Authorization": f"Bearer {token}"}
-    r = requests.get(
-        "https://api.zoom.us/v2/users/me/webinars",
-        headers=headers,
-        params={"page_size": 100}
-    )
-    r.raise_for_status()
-
-    target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-
-    for w in r.json().get("webinars", []):
-        start = datetime.fromisoformat(w["start_time"].replace("Z", "+00:00"))
-        if w["topic"] == name and start.date() == target_date:
-            return w["id"]
-
-    return None
 
 # ------------------------
 # REGISTER EMAIL
@@ -95,7 +66,6 @@ def register_email(token, webinar_id, email):
 # ------------------------
 # ROUTES
 # ------------------------
-
 # --------------------------------------------------
 # Healthcheck endpoint (obligatoire pour Render)
 # --------------------------------------------------
@@ -107,27 +77,27 @@ def wakeup():
 # Mise à jour du webinaire
 # --------------------------------------------------
 @app.post("/update-webinar")
-def update_webinar(data: WebinarUpdateRequest):
+def update_webinar(data: dict):
     token = get_zoom_token()
-    webinar_id = find_webinar(token, data.webinar_name, data.webinar_date)
-
-    if not webinar_id:
+    
+    if not data.webinar_id:
         return {
             "status": "webinar_not_found",
-            "registered": 0
+            "webinar_id": data.webinar_id,
+            "registered": 0,
+            "requested": len(data.emails)
         }
 
     success = 0
     for email in set(data.emails):
         try:
-            if register_email(token, webinar_id, email):
-                success += 1
+            if register_email(token, data.webinar_id, email): success += 1
         except:
             continue
 
     return {
         "status": "ok",
-        "webinar_id": webinar_id,
+        "webinar_id": data.webinar_id,
         "registered": success,
         "requested": len(data.emails)
     }
