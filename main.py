@@ -156,7 +156,7 @@ def create_webinar(data: dict):
     }
 
     r = requests.post(
-        f"{ZOOM_API_BASE}/users/me/webinars",
+        "https://api.zoom.us/v2/users/me/webinars"
         headers=headers,
         json=payload,
         timeout=20,
