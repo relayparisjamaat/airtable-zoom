@@ -155,8 +155,8 @@ def create_webinar(data: dict):
         },
     }
 
-    log.info("Payload")
-    log.info(payload)
+    print("Payload")
+    print(payload)
 
     r = requests.post(
         "https://api.zoom.us/v2/users/me/webinars",
@@ -166,7 +166,7 @@ def create_webinar(data: dict):
     )
 
     if r.status_code != 201:
-        console.log({
+        print({
             "status": "error",
             "zoom_status": r.status_code,
             "zoom_response": r.text
