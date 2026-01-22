@@ -131,7 +131,7 @@ def create_webinar(data: dict):
         "settings": {
             "approval_type": 0,
             "registration_type": 1,
-            "registrants_email_notification": true,
+            "registrants_email_notification": True,
             "email_language": "fr-FR"
         },
     }
