@@ -79,27 +79,28 @@ def wakeup():
 @app.api_route("/update-webinar", methods=["POST", "GET"])
 def update_webinar(data: dict):
     token = get_zoom_token()
+    webinar_id = data["webinar_id"]
     
-    if not data.webinar_id:
+    if not webinar_id:
         return {
             "status": "webinar_not_found",
-            "webinar_id": data.webinar_id,
+            "webinar_id": webinar_id,
             "registered": 0,
-            "requested": len(data.emails)
+            "requested": len(data["emails"])
         }
 
     success = 0
-    for email in set(data.emails):
+    for email in set(data["emails"]):
         try:
-            if register_email(token, data.webinar_id, email): success += 1
+            if register_email(token, webinar_id, email): success += 1
         except:
             continue
 
     return {
         "status": "ok",
-        "webinar_id": data.webinar_id,
+        "webinar_id": webinar_id,
         "registered": success,
-        "requested": len(data.emails)
+        "requested": len(data["emails"])
     }
 
 # --------------------------------------------------
