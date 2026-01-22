@@ -61,7 +61,7 @@ def register_email(token, webinar_id, email):
         headers=headers,
         json=payload
     )
-    return r.status_code == 201
+    return r.status_code
 
 # ------------------------
 # ROUTES
@@ -92,7 +92,10 @@ def update_webinar(data: dict):
     success = 0
     for email in set(data["emails"]):
         try:
-            if register_email(token, webinar_id, email): success += 1
+            print(email)
+            r = register_email(token, webinar_id, email)
+            print(r)
+            if r == 201 : success += 1
         except:
             continue
 
