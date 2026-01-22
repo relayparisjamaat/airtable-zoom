@@ -137,8 +137,9 @@ def update_webinar(data: WebinarUpdateRequest):
 # --------------------------------------------------
 @app.post("/create-webinar")
 def create_webinar(data: dict):
+    token = get_zoom_token()
     headers = {
-        "Authorization": f"Bearer {ZOOM_TOKEN}",
+        "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
 
