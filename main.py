@@ -82,8 +82,8 @@ def register_email(token, webinar_id, email):
     }
     payload = {
         "email": email,
-        "first_name": "Relay",
-        "last_name": "Participant"
+        "first_name": "",
+        "last_name": ""
     }
     r = requests.post(
         f"https://api.zoom.us/v2/webinars/{webinar_id}/registrants",
@@ -156,7 +156,7 @@ def create_webinar(data: dict):
     }
 
     r = requests.post(
-        "https://api.zoom.us/v2/users/me/webinars"
+        "https://api.zoom.us/v2/users/me/webinars",
         headers=headers,
         json=payload,
         timeout=20,
