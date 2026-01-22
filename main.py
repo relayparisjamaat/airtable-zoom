@@ -69,14 +69,14 @@ def register_email(token, webinar_id, email):
 # --------------------------------------------------
 # Healthcheck endpoint (obligatoire pour Render)
 # --------------------------------------------------
-@app.post("/")
+@app.api_route("/", methods=["POST", "GET"])
 def wakeup():
     return {"status": "ok"}
 
 # --------------------------------------------------
 # Mise à jour du webinaire
 # --------------------------------------------------
-@app.post("/update-webinar")
+@app.api_route("/update-webinar", methods=["POST", "GET"])
 def update_webinar(data: dict):
     token = get_zoom_token()
     
@@ -105,7 +105,7 @@ def update_webinar(data: dict):
 # --------------------------------------------------
 # Création du webinaire
 # --------------------------------------------------
-@app.post("/create-webinar")
+@app.api_route("/create-webinar", methods=["POST", "GET"])
 def create_webinar(data: dict):
     token = get_zoom_token()
     headers = {
