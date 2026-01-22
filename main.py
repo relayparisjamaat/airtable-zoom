@@ -99,6 +99,8 @@ def update_webinar(data: dict):
         }
 
     success = 0
+    print(data)
+    print(data["names"])
     for i in range(len(data["emails"])):
         email = data["emails"][i]
         name = data["names"][i]
@@ -106,7 +108,6 @@ def update_webinar(data: dict):
             print(email)
             print(name)
             r = register_email(token, webinar_id, email, name)
-            print(r)
             if r == 201 : success += 1
         except:
             continue
