@@ -46,15 +46,15 @@ def get_zoom_token():
 # ------------------------
 # REGISTER EMAIL
 # ------------------------
-def register_email(token, webinar_id, email):
+def register_email(token, webinar_id, email, name):
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
     payload = {
         "email": email,
-        "first_name": "",
-        "last_name": ""
+        "first_name": name,
+        "last_name": " ",
     }
     r = requests.post(
         f"https://api.zoom.us/v2/webinars/{webinar_id}/registrants",
@@ -90,10 +90,13 @@ def update_webinar(data: dict):
         }
 
     success = 0
-    for email in set(data["emails"]):
+    for i in range(len(data["emails"])):
+        email = data["emails"][i]
+        name = data["names"][i]
         try:
             print(email)
-            r = register_email(token, webinar_id, email)
+            print(name)
+            r = register_email(token, webinar_id, email, name)
             print(r)
             if r == 201 : success += 1
         except:
