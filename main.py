@@ -53,7 +53,8 @@ def register_email(token, webinar_id, email, name):
     }
     payload = {
         "email": email,
-        "first_name": name,
+        "first_name": name.split()[0],
+        "last_name": name.split()[1],
     }
     r = requests.post(
         f"https://api.zoom.us/v2/webinars/{webinar_id}/registrants",
