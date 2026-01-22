@@ -61,17 +61,8 @@ def register_email(token, webinar_id, email, name):
         headers=headers,
         json=payload
     )
-
-    print(r.status_code)
-    print(r.text)
     
-    if r.status_code == 201:
-        return {"status": "registered"}
-
-    if r.status_code == 400 and "already registered" in r.text.lower():
-        return {"status": "already_registered"}
-
-    raise Exception(f"Zoom error {r.status_code}: {r.text}")
+    return {"status code": r.status_code, "status body": r.text}
 
 # ------------------------
 # ROUTES
@@ -100,6 +91,7 @@ def update_webinar(data: dict):
         }
 
     success = 0
+    status = "ok"
     print(data)
     print(data["names"])
     for i in range(len(data["emails"])):
@@ -109,12 +101,16 @@ def update_webinar(data: dict):
             print(email)
             print(name)
             r = register_email(token, webinar_id, email, name)
-            if r == 201 : success += 1
+            if r["status code"] == 201 : 
+                success += 1
+                status = "ok"
+            else : 
+                status = r["status body"]
         except:
             continue
 
     return {
-        "status": "ok",
+        "status": status,
         "webinar_id": webinar_id,
         "registered": success,
         "requested": len(data["emails"])
