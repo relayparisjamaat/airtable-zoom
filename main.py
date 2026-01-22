@@ -60,6 +60,9 @@ def register_email(token, webinar_id, email, name):
         headers=headers,
         json=payload
     )
+
+    print(r.status_code)
+    print(r.text)
     
     if r.status_code == 201:
         return {"status": "registered"}
