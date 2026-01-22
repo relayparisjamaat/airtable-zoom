@@ -99,7 +99,6 @@ def update_webinar(data: dict):
             r = register_email(token, webinar_id, email, name)
             if r["status code"] == 201 : 
                 success += 1
-                status = "ok"
             else : 
                 status = r["status body"]
         except:
