@@ -131,3 +131,36 @@ def update_webinar(data: WebinarUpdateRequest):
         "registered": success,
         "requested": len(data.emails)
     }
+
+@app.post("/create-webinar")
+def create_webinar(data: WebinarCreateRequest):
+    headers = {
+        "Authorization": f"Bearer {ZOOM_TOKEN}",
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "topic": data["name"],
+        "type": 5,  # Scheduled webinar
+        "start_time": data["start_time"],
+        "duration": data["duration"],
+        "timezone": "Europe/Paris",
+        "settings": {
+            "approval_type": 0,
+            "registration_type": 1,
+        },
+    }
+
+    r = requests.post(
+        f"{ZOOM_API_BASE}/users/me/webinars",
+        headers=headers,
+        json=payload,
+        timeout=20,
+    )
+
+    if r.status_code != 201:
+        raise HTTPException(status_code=400, detail=r.text)
+
+    webinar = r.json()
+
+    return {"status": "ok", "webinar_id": webinar["id"],}
