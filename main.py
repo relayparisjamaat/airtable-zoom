@@ -147,13 +147,16 @@ def create_webinar(data: dict):
         "topic": data["name"],
         "type": 5,  # Scheduled webinar
         "start_time": data["start_time"],
-        "duration": data["duration"],
+        "duration": int(data["duration"]),
         "timezone": "Europe/Paris",
         "settings": {
             "approval_type": 0,
             "registration_type": 1,
         },
     }
+
+    log.info("Payload")
+    log.info(payload)
 
     r = requests.post(
         "https://api.zoom.us/v2/users/me/webinars",
@@ -163,6 +166,11 @@ def create_webinar(data: dict):
     )
 
     if r.status_code != 201:
+        console.log({
+            "status": "error",
+            "zoom_status": r.status_code,
+            "zoom_response": r.text
+        })
         raise HTTPException(status_code=400, detail=r.text)
 
     webinar = r.json()
