@@ -54,14 +54,20 @@ def register_email(token, webinar_id, email, name):
     payload = {
         "email": email,
         "first_name": name,
-        "last_name": " ",
     }
     r = requests.post(
         f"https://api.zoom.us/v2/webinars/{webinar_id}/registrants",
         headers=headers,
         json=payload
     )
-    return r.status_code
+    
+    if r.status_code == 201:
+        return {"status": "registered"}
+
+    if r.status_code == 400 and "already registered" in r.text.lower():
+        return {"status": "already_registered"}
+
+    raise Exception(f"Zoom error {r.status_code}: {r.text}")
 
 # ------------------------
 # ROUTES
