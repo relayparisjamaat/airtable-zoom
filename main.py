@@ -131,10 +131,12 @@ def create_webinar(data: dict):
         "settings": {
             "approval_type": 0,
             "registration_type": 1,
+            "registrants_email_notification": true,
+            "email_language": "fr-FR"
         },
     }
 
-    print("Payload")
+    print("Payload for meeting creation : ")
     print(payload)
 
     r = requests.post(
