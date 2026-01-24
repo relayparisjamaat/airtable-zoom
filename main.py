@@ -10,12 +10,14 @@ from pydantic import BaseModel
 # --------------------------------------------------
 # Configuration logging (logs visibles dans Render)
 # --------------------------------------------------
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # --------------------------------------------------
 # FastAPI app
 # --------------------------------------------------
+
 app = FastAPI(title="Jotform Data Service")
 
 # --------------------------------------------------
@@ -51,11 +53,27 @@ def register_email(token, webinar_id, email, name):
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
+
+    # Vérification de différents cas sur le nom prénom sinon le processus va planter. name est censé contenir : "Prénom Nom"
+    if(len(name.split()) == 1) :
+        firstname = name
+        lastname = "Nom de famille"
+    elif(len(name.split()) == 2) :
+        firstname = name.split()[0]
+        lastname = name.split()[1]
+    elif(len(name.split() > 2): # exemple nom de famille composé en 2 mots
+        firstname = name.split()[0]
+        lastname = name.split()[1] + name.split()[2]
+    else: # sinon, name est vide on fait un remplissage par défaut
+        firstname = "Prénom"
+        lastname = "Nom"
+
     payload = {
         "email": email,
-        "first_name": name.split()[0],
-        "last_name": name.split()[1],
+        "first_name": firstname,
+        "last_name": lastname,
     }
+    
     r = requests.post(
         f"https://api.zoom.us/v2/webinars/{webinar_id}/registrants",
         headers=headers,
@@ -64,9 +82,12 @@ def register_email(token, webinar_id, email, name):
     
     return {"status code": r.status_code, "status body": r.text}
 
-# ------------------------
-# ROUTES
-# ------------------------
+# ------------------------------------------------
+# ------------------------------------------------
+#             MAIN CODE : WEB ROUTES
+# ------------------------------------------------
+# ------------------------------------------------
+
 # --------------------------------------------------
 # Healthcheck endpoint (obligatoire pour Render)
 # --------------------------------------------------
@@ -117,6 +138,7 @@ def update_webinar(data: dict):
 @app.api_route("/create-webinar", methods=["POST", "GET"])
 def create_webinar(data: dict):
     token = get_zoom_token()
+    
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
@@ -124,15 +146,34 @@ def create_webinar(data: dict):
 
     payload = {
         "topic": data["name"],
-        "type": 5,  # Scheduled webinar
+        "type": 5,  # Scheduled webinar (not a periodic one)
         "start_time": data["start_time"],
         "duration": int(data["duration"]),
         "timezone": "Europe/Paris",
         "settings": {
             "approval_type": 0,
             "registration_type": 1,
+            "registrants_confirmation_email": True,
             "registrants_email_notification": True,
-            "email_language": "fr-FR"
+            "attendees_and_panelists_reminder_email_notification": {
+                "enable": True,
+                "type": 0
+            },
+            "request_permission_to_unmute_participants": False,
+            "request_permission_to_unmute_participants": True,
+            "allow_host_control_participant_mute_state": True,
+            "email_in_attendee_report": True,
+            "add_watermark": True,
+            "email_language": "fr-FR",
+            "question_and_answer": {
+                "allow_submit_questions": True,
+                "allow_anonymous_questions": True,
+                "answer_questions": "all",
+                "attendees_can_comment": True,
+                "attendees_can_upvote": True,
+                "allow_auto_reply": True,
+                "enable": True
+            },
         },
     }
 
