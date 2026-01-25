@@ -61,7 +61,7 @@ def register_email(token, webinar_id, email, name):
     elif(len(name.split()) == 2) :
         firstname = name.split()[0]
         lastname = name.split()[1]
-    elif(len(name.split() > 2): # exemple nom de famille composé en 2 mots
+    elif(len(name.split()) > 2): # exemple nom de famille composé en 2 mots
         firstname = name.split()[0]
         lastname = name.split()[1] + name.split()[2]
     else: # sinon, name est vide on fait un remplissage par défaut
