@@ -80,7 +80,7 @@ def register_email(token, webinar_id, email, name):
         json=payload
     )
     
-    return {"status code": r.status_code, "status body": r.text}
+    return {"status_code": r.status_code, "status_body": r.text}
 
 # ------------------------------------------------
 # ------------------------------------------------
@@ -118,10 +118,12 @@ def update_webinar(data: dict):
         name = data["names"][i]
         try:
             r = register_email(token, webinar_id, email, name)
-            if r["status code"] == 201 : 
+            if r["status_code"] == 201 : 
                 success += 1
             else : 
-                status = r["status body"]
+                status = r["status_body"]
+
+            time.sleep(1.5)  # CRUCIAL pour s'assurer que les e-mails s'envoient bien
         except:
             continue
 
@@ -160,7 +162,6 @@ def create_webinar(data: dict):
                 "enable": True,
                 "type": 0
             },
-            "request_permission_to_unmute_participants": False,
             "request_permission_to_unmute_participants": True,
             "allow_host_control_participant_mute_state": True,
             "email_in_attendee_report": True,
