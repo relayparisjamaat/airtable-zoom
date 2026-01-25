@@ -155,6 +155,7 @@ def create_webinar(data: dict):
             "registration_type": 1,
             "registrants_confirmation_email": True,
             "registrants_email_notification": True,
+            "send_1080p_video_to_attendees": True,
             "attendees_and_panelists_reminder_email_notification": {
                 "enable": True,
                 "type": 0
