@@ -6,7 +6,9 @@ import json
 from datetime import datetime, timezone
 import socket
 from pydantic import BaseModel
-
+import csv
+import io
+    
 # --------------------------------------------------
 # Configuration logging (logs visibles dans Render)
 # --------------------------------------------------
@@ -45,6 +47,44 @@ def get_zoom_token():
     r.raise_for_status()
     return r.json()["access_token"]
 
+# ------------------------
+# GENERATE CSV
+# ------------------------
+def build_zoom_csv(emails, names):
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+
+    writer.writerow(["email", "first_name", "last_name"])
+
+    for email, name in zip(emails, names):
+        parts = name.split()
+        first_name = parts[0] if parts else "Prénom"
+        last_name = " ".join(parts[1:]) if len(parts) > 1 else "Nom"
+
+        writer.writerow([email, first_name, last_name])
+
+    buffer.seek(0)
+    return buffer
+
+def register_emails_csv(token, webinar_id, csv_buffer):
+    headers = {
+        "Authorization": f"Bearer {token}",
+    }
+
+    files = {
+        "file": ("registrants.csv", csv_buffer.getvalue(), "text/csv")
+    }
+
+    r = requests.post(
+        f"https://api.zoom.us/v2/webinars/{webinar_id}/registrants/import",
+        headers=headers,
+        files=files,
+        timeout=30
+    )
+
+    r.raise_for_status()
+    return r.json()
+    
 # ------------------------
 # REGISTER EMAIL
 # ------------------------
@@ -123,7 +163,7 @@ def update_webinar(data: dict):
             else : 
                 status = r["status_body"]
 
-            time.sleep(1.5)  # CRUCIAL pour s'assurer que les e-mails s'envoient bien
+            time.sleep(10)  # CRUCIAL pour s'assurer que les e-mails s'envoient bien
         except:
             continue
 
@@ -154,10 +194,11 @@ def create_webinar(data: dict):
         "timezone": "Europe/Paris",
         "settings": {
             "approval_type": 0,
-            "registration_type": 1,
+            "registration_type": 1 if data["Diffusion"] == "Sur inscription" else 3,
             "registrants_confirmation_email": True,
             "registrants_email_notification": True,
             "send_1080p_video_to_attendees": True,
+            "auto_recording": "cloud" if data["Recording"] == "Oui" else "none",
             "attendees_and_panelists_reminder_email_notification": {
                 "enable": True,
                 "type": 0
@@ -167,6 +208,7 @@ def create_webinar(data: dict):
             "email_in_attendee_report": True,
             "add_watermark": True,
             "email_language": "fr-FR",
+            
             "question_and_answer": {
                 "allow_submit_questions": True,
                 "allow_anonymous_questions": True,
@@ -200,3 +242,18 @@ def create_webinar(data: dict):
     webinar = r.json()
 
     return {"status": "ok", "webinar_id": webinar["id"],}
+
+# --------------------------------------------------
+# Ajout des participants en csv
+# --------------------------------------------------
+@app.api_route("/add-registrants-csv", methods=["POST", "GET"])
+def add_registrants(data: dict):
+    csv_buffer = build_zoom_csv(data["emails"], data["names"])
+    result = register_emails_csv(token, webinar_id, csv_buffer)
+    
+    return {
+        "status": "ok",
+        "webinar_id": webinar_id,
+        "registered": result.get("total_records", 0),
+        "requested": len(data["emails"])
+    }
