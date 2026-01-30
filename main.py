@@ -194,11 +194,11 @@ def create_webinar(data: dict):
         "timezone": "Europe/Paris",
         "settings": {
             "approval_type": 0,
-            "registration_type": 1 if data["Diffusion"] == "Sur inscription" else 3,
+            "registration_type": 1 if data["diffusion"] == "Sur inscription" else 3,
             "registrants_confirmation_email": True,
             "registrants_email_notification": True,
             "send_1080p_video_to_attendees": True,
-            "auto_recording": "cloud" if data["Recording"] == "Oui" else "none",
+            "auto_recording": "cloud" if data["recording"] == "Oui" else "none",
             "attendees_and_panelists_reminder_email_notification": {
                 "enable": True,
                 "type": 0
