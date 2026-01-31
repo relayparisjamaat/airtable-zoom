@@ -297,6 +297,7 @@ def update_webinar(data: dict):
             print("Exception");
             continue
 
+    mail_success = 0
     print("Registered emails : ")
     print(registered_emails)
     print(len(registered_emails), len(join_urls))
@@ -310,15 +311,27 @@ def update_webinar(data: dict):
             "TIME": webinar_time,
             "JOIN_URL": join_url}
         )
-        print("Sent email result")
+        print("Raw result : ")
         print(r)
+        try:
+            body = r.json()
+        except ValueError:
+            body = {"message": response.text}
+
+        status = response.status_code
+        print("Mail status : ")
+        print(status)
+        print(body)
+
+        # Succès
+        if status == 202: mail_succes += 1
     
     return {
         "status": status,
         "webinar_id": webinar_id,
-        "registered": success,
+        "registered": len(registered_emails),
         "requested": len(data["emails"]),
-        "emails_sent": "to come",
+        "emails_sent": mail_success,
     }
 
 # --------------------------------------------------
