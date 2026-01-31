@@ -285,7 +285,7 @@ def update_webinar(data: dict):
             r = register_email(token, webinar_id, email, name)
             print("Register : ")
             print(r)
-            if [r.status_code] == 201 :
+            if r.status_code == 201 :
                 print("Success")
                 success += 1
                 registered_emails.append(email)
