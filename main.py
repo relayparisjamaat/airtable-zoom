@@ -248,6 +248,9 @@ def create_webinar(data: dict):
 # --------------------------------------------------
 @app.api_route("/add-registrants-csv", methods=["POST", "GET"])
 def add_registrants(data: dict):
+    token = get_zoom_token()
+    webinar_id = data["webinar_id"]
+    
     csv_buffer = build_zoom_csv(data["emails"], data["names"])
     result = register_emails_csv(token, webinar_id, csv_buffer)
     
