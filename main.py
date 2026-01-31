@@ -91,11 +91,12 @@ def register_emails_csv(token, webinar_id, csv_buffer):
 # REGISTER EMAIL
 # ------------------------
 def register_email(token, webinar_id, webinar_name, webinar_date, webinar_time, email, name):
+    print("Register email start function")
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
-
+    print("Register email headers")
     # Vérification de différents cas sur le nom prénom sinon le processus va planter. name est censé contenir : "Prénom Nom"
     if(len(name.split()) == 1) :
         firstname = name
@@ -109,19 +110,20 @@ def register_email(token, webinar_id, webinar_name, webinar_date, webinar_time, 
     else: # sinon, name est vide on fait un remplissage par défaut
         firstname = "Prénom"
         lastname = "Nom"
-
+    print("Register email name split")
     payload = {
         "email": email,
         "first_name": firstname,
         "last_name": lastname,
     }
-    
+    print("Register email payload")
     r = requests.post(
         f"https://api.zoom.us/v2/webinars/{webinar_id}/registrants",
         headers=headers,
         json=payload
     )
-    print("Register email function : " + r)
+    print("Register email result")
+    print(r)
     return r
 
 # ------------------------
