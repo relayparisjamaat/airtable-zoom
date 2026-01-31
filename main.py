@@ -122,8 +122,9 @@ def register_email(token, webinar_id, email, name):
         headers=headers,
         json=payload
     )
-    print("Register email result")
+    print("Register result")
     print(r)
+    print(r.status_code)
     return r
 
 # ------------------------
