@@ -310,7 +310,7 @@ def update_webinar(data: dict):
             "TIME": webinar_time,
             "JOIN_URL": join_url}
         )
-        print("Sent email result)
+        print("Sent email result")
         print(r)
     
     return {
