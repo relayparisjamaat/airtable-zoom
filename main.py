@@ -273,8 +273,9 @@ def update_webinar(data: dict):
     for i in range(len(data["emails"])):
         email = data["emails"][i]
         name = data["names"][i]
-        print(name + " " + email)
         try:
+            print("Trying to register")
+            print(name + " " + email)
             r = register_email(token, webinar_id, email, name)
             print("Register : ")
             print(r)
@@ -282,8 +283,10 @@ def update_webinar(data: dict):
                 success += 1
                 registered_emails.append(email)
                 join_urls.append(r.json()["join_url"])
-            else : 
+            else :
                 status = r.text
+                print("Fail register")
+                print(r)
         except:
             continue
 
