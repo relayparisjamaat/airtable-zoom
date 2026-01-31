@@ -8,7 +8,9 @@ import socket
 from pydantic import BaseModel
 import csv
 import io
-    
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+
 # --------------------------------------------------
 # Configuration logging (logs visibles dans Render)
 # --------------------------------------------------
@@ -88,7 +90,7 @@ def register_emails_csv(token, webinar_id, csv_buffer):
 # ------------------------
 # REGISTER EMAIL
 # ------------------------
-def register_email(token, webinar_id, email, name):
+def register_email(token, webinar_id, webinar_name, webinar_date, webinar_time, email, name):
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
@@ -119,8 +121,136 @@ def register_email(token, webinar_id, email, name):
         headers=headers,
         json=payload
     )
-    
+
+    join_url = r.json()["join_url"]
+
+    send_zoom_like_email(
+        to_email=email
+        subject="Inscription confirmée – Miqaat Relay",
+        data={
+            "WEBINAR_NAME": webinar_name,
+            "DATE": webinar_date,
+            "TIME": webinar_time,
+            "JOIN_URL": join_url
+        }
+    )
+
     return {"status_code": r.status_code, "status_body": r.text}
+
+# ------------------------
+# SEND EMAIL
+# ------------------------
+HTML_TEMPLATE = """<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background-color:#f4f6f8;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;padding:24px;">
+          <tr>
+            <td>
+              <h2 style="margin:0 0 16px 0;font-weight:600;color:#222;">
+                Inscription confirmée
+              </h2>
+
+              <p style="margin:0 0 16px 0;color:#333;">
+                Votre inscription au webinaire suivant est confirmée :
+              </p>
+
+              <p style="margin:0 0 12px 0;font-size:16px;">
+                <strong>{{WEBINAR_NAME}}</strong>
+              </p>
+
+              <p style="margin:0 0 20px 0;color:#333;">
+                <strong>Date :</strong> {{DATE}}<br>
+                <strong>Heure :</strong> {{TIME}} (heure de Paris)
+              </p>
+
+              <table cellpadding="0" cellspacing="0" align="center">
+                <tr>
+                  <td style="background:#0e72ed;border-radius:4px;">
+                    <a href="{{JOIN_URL}}"
+                       style="display:inline-block;padding:12px 24px;
+                              color:#ffffff;text-decoration:none;
+                              font-weight:600;">
+                      Rejoindre le webinaire
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:24px 0 0 0;font-size:12px;color:#777;">
+                Ce message a été envoyé automatiquement. Merci de ne pas y répondre.
+              </p>
+
+            </td>
+          </tr>
+        </table>
+
+        <p style="font-size:11px;color:#999;margin:12px 0;">
+          © Zoom Video Communications, Inc. – Notification automatisée
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+"""
+
+def render_html(template, data):
+    for k, v in data.items():
+        template = template.replace(f"{{{{{k}}}}}", v)
+    return template
+    
+def build_text_version(data):
+    return f"""Inscription confirmée
+    
+    Webinaire : {data["WEBINAR_NAME"]}
+    Date : {data["DATE"]}
+    Heure : {data["TIME"]} (heure de Paris)
+    Lien : {data["JOIN_URL"]}
+    
+    Ceci est un message automatique.
+    """
+    
+def send_confirmation_email(to_email, data):
+    html_content = render_html(HTML_TEMPLATE, data)
+    text_content = build_text_version(data)
+
+    payload = {
+        "personalizations": [
+            {
+                "to": [{"email": to_email}],
+                "subject": "[RELAY] Inscription confirmée pour le webinaire : "
+            }
+        ],
+        "from": {
+            "email": "relay.parisjamaat@gmail.com",
+            "name": "Relay Paris Jamaat"
+        },
+        "content": [
+            {"type": "text/plain", "value": text_content},
+            {"type": "text/html", "value": html_content}
+        ]
+    }
+
+    try :
+        r = requests.post(
+            "https://api.sendgrid.com/v3/mail/send",
+            headers={
+                "Authorization": f"Bearer {os.getenv("SENDGRID_API_KEY")}",
+                "Content-Type": "application/json"
+            },
+            json=payload,
+            timeout=10
+        )
+    
+        r.raise_for_status()
+        #sg = SendGridAPIClient(os.getenv("SENDGRID_API_KEY"))
+        #response = sg.send(message)
+        print("📧 SENDGRID STATUS:", r.status_code)
+    except Exception as e:
+        print("🔥 SENDGRID ERROR:", str(e))
 
 # ------------------------------------------------
 # ------------------------------------------------
@@ -142,6 +272,8 @@ def wakeup():
 def update_webinar(data: dict):
     token = get_zoom_token()
     webinar_id = data["webinar_id"]
+    webinar_name = data["webinar_name"] 
+    webinar_date = data["webinar_date"]
     
     if not webinar_id:
         return {
@@ -157,13 +289,11 @@ def update_webinar(data: dict):
         email = data["emails"][i]
         name = data["names"][i]
         try:
-            r = register_email(token, webinar_id, email, name)
+            r = register_email(token, webinar_id, webinar_name, webinar_date, email, name)
             if r["status_code"] == 201 : 
                 success += 1
             else : 
                 status = r["status_body"]
-
-            time.sleep(10)  # CRUCIAL pour s'assurer que les e-mails s'envoient bien
         except:
             continue
 
@@ -247,11 +377,12 @@ def create_webinar(data: dict):
 # Ajout des participants en csv
 # --------------------------------------------------
 @app.api_route("/add-registrants-csv", methods=["POST", "GET"])
-def add_registrants(data: dict):
+def add_registrants_csv(data: dict):
     token = get_zoom_token()
     webinar_id = data["webinar_id"]
     
     csv_buffer = build_zoom_csv(data["emails"], data["names"])
+    
     result = register_emails_csv(token, webinar_id, csv_buffer)
     
     return {
