@@ -274,6 +274,7 @@ def update_webinar(data: dict):
     webinar_id = data["webinar_id"]
     webinar_name = data["webinar_name"] 
     webinar_date = data["webinar_date"]
+    webinar_time = data["webinar_time"]
     
     if not webinar_id:
         return {
@@ -289,7 +290,7 @@ def update_webinar(data: dict):
         email = data["emails"][i]
         name = data["names"][i]
         try:
-            r = register_email(token, webinar_id, webinar_name, webinar_date, email, name)
+            r = register_email(token, webinar_id, webinar_name, webinar_date, webinar_time, email, name)
             if r["status_code"] == 201 : 
                 success += 1
             else : 
