@@ -122,20 +122,7 @@ def register_email(token, webinar_id, webinar_name, webinar_date, webinar_time, 
         json=payload
     )
 
-    join_url = r.json()["join_url"]
-
-    send_zoom_like_email(
-        to_email=email,
-        subject="Inscription confirmée – Miqaat Relay",
-        data={
-            "WEBINAR_NAME": webinar_name,
-            "DATE": webinar_date,
-            "TIME": webinar_time,
-            "JOIN_URL": join_url
-        }
-    )
-
-    return {"status_code": r.status_code, "status_body": r.text}
+    return r
 
 # ------------------------
 # SEND EMAIL
@@ -245,12 +232,7 @@ def send_confirmation_email(to_email, data):
             timeout=10
         )
     
-        r.raise_for_status()
-        #sg = SendGridAPIClient(os.getenv("SENDGRID_API_KEY"))
-        #response = sg.send(message)
-        print("📧 SENDGRID STATUS:", r.status_code)
-    except Exception as e:
-        print("🔥 SENDGRID ERROR:", str(e))
+    return r
 
 # ------------------------------------------------
 # ------------------------------------------------
@@ -275,6 +257,8 @@ def update_webinar(data: dict):
     webinar_name = data["webinar_name"] 
     webinar_date = data["webinar_date"]
     webinar_time = data["webinar_time"]
+    registered_emails = []
+    join_urls = []
     
     if not webinar_id:
         return {
@@ -291,18 +275,32 @@ def update_webinar(data: dict):
         name = data["names"][i]
         try:
             r = register_email(token, webinar_id, webinar_name, webinar_date, webinar_time, email, name)
-            if r["status_code"] == 201 : 
+            if [r.status_code] == 201 : 
                 success += 1
+                registered_emails.append(email)
+                join_urls.append(r.json()["join_url"])
             else : 
-                status = r["status_body"]
+                status = r.text
         except:
             continue
 
+    for i in range(len(registered_emails)):
+        email = registered_emails[i]
+        join_url = join_urls[i]
+        r = send_confirmation_email(to_email=email, subject="Inscription confirmée – Miqaat Relay", data={
+            "WEBINAR_NAME": webinar_name,
+            "DATE": webinar_date,
+            "TIME": webinar_time,
+            "JOIN_URL": join_url}
+        )
+        print(r)
+    
     return {
         "status": status,
         "webinar_id": webinar_id,
         "registered": success,
-        "requested": len(data["emails"])
+        "requested": len(data["emails"]),
+        "emails_sent": "to come",
     }
 
 # --------------------------------------------------
