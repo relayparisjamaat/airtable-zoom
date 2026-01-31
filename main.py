@@ -272,6 +272,7 @@ def update_webinar(data: dict):
     for i in range(len(data["emails"])):
         email = data["emails"][i]
         name = data["names"][i]
+        print(name + " " + email)
         try:
             r = register_email(token, webinar_id, email, name)
             print("Register : ")
