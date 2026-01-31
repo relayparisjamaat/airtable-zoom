@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+frefrom fastapi import FastAPI, Request, HTTPException
 import requests
 import logging
 import os
@@ -221,16 +221,15 @@ def send_confirmation_email(to_email, data):
         ]
     }
 
-    try :
-        r = requests.post(
-            "https://api.sendgrid.com/v3/mail/send",
-            headers={
-                "Authorization": f"Bearer {os.getenv("SENDGRID_API_KEY")}",
-                "Content-Type": "application/json"
-            },
-            json=payload,
-            timeout=10
-        )
+    r = requests.post(
+        "https://api.sendgrid.com/v3/mail/send",
+        headers={
+            "Authorization": f"Bearer {os.getenv("SENDGRID_API_KEY")}",
+            "Content-Type": "application/json"
+        },
+        json=payload,
+        timeout=10
+    )
     
     return r
 
