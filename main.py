@@ -273,7 +273,9 @@ def update_webinar(data: dict):
         email = data["emails"][i]
         name = data["names"][i]
         try:
-            r = register_email(token, webinar_id, webinar_name, webinar_date, webinar_time, email, name)
+            r = register_email(token, webinar_id, email, name)
+            print("Register : ")
+            print(r)
             if [r.status_code] == 201 : 
                 success += 1
                 registered_emails.append(email)
@@ -292,6 +294,7 @@ def update_webinar(data: dict):
             "TIME": webinar_time,
             "JOIN_URL": join_url}
         )
+        print("Send email : ")
         print(r)
     
     return {
