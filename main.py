@@ -202,15 +202,18 @@ def build_text_version(data):
     Ceci est un message automatique.
     """
     
-def send_confirmation_email(to_email, data):
+def send_confirmation_email(to_email, subject, data):
+    print("Start email function")
     html_content = render_html(HTML_TEMPLATE, data)
+    print("HTML generated")
     text_content = build_text_version(data)
+    print("Text content")
 
     payload = {
         "personalizations": [
             {
                 "to": [{"email": to_email}],
-                "subject": "[RELAY] Inscription confirmée pour le webinaire : "
+                "subject": subject
             }
         ],
         "from": {
@@ -222,7 +225,8 @@ def send_confirmation_email(to_email, data):
             {"type": "text/html", "value": html_content}
         ]
     }
-
+    print("Payload done")
+    
     r = requests.post(
         "https://api.sendgrid.com/v3/mail/send",
         headers={
@@ -232,8 +236,7 @@ def send_confirmation_email(to_email, data):
         json=payload,
         timeout=10
     )
-
-    print("Send email function : " + r)
+    
     return r
 
 # ------------------------------------------------
@@ -281,28 +284,32 @@ def update_webinar(data: dict):
             r = register_email(token, webinar_id, email, name)
             print("Register : ")
             print(r)
-            if [r.status_code] == 201 : 
+            if [r.status_code] == 201 :
+                print("Success")
                 success += 1
                 registered_emails.append(email)
                 join_urls.append(r.json()["join_url"])
             else :
+                print("Fail")
                 status = r.text
-                print("Fail register")
-                print(r)
         except:
+            print("Exception");
             continue
 
+    print("Registered emails : ")
+    print(registered_emails)
+    print(len(registered_emails), len(join_urls))
     for i in range(len(registered_emails)):
         email = registered_emails[i]
         join_url = join_urls[i]
-        r = send_confirmation_email(to_email=email, subject="Inscription confirmée – Miqaat Relay", data={
+        print("Trying to send email to " + email + " with link " + join_url)
+        r = send_confirmation_email(to_email=email, subject="[RELAY] Inscription confirmée : " + webinar_name, data={
             "WEBINAR_NAME": webinar_name,
             "DATE": webinar_date,
             "TIME": webinar_time,
             "JOIN_URL": join_url}
         )
-        print("Send email : ")
-        print(r)
+        print("Sent email result : " + r)
     
     return {
         "status": status,
