@@ -125,7 +125,7 @@ def register_email(token, webinar_id, webinar_name, webinar_date, webinar_time, 
     join_url = r.json()["join_url"]
 
     send_zoom_like_email(
-        to_email=email
+        to_email=email,
         subject="Inscription confirmée – Miqaat Relay",
         data={
             "WEBINAR_NAME": webinar_name,
