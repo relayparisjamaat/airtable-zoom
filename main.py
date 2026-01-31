@@ -121,7 +121,7 @@ def register_email(token, webinar_id, webinar_name, webinar_date, webinar_time, 
         headers=headers,
         json=payload
     )
-
+    print("Register email function : " + r)
     return r
 
 # ------------------------
@@ -230,7 +230,8 @@ def send_confirmation_email(to_email, data):
         json=payload,
         timeout=10
     )
-    
+
+    print("Send email function : " + r)
     return r
 
 # ------------------------------------------------
