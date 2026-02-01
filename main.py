@@ -296,11 +296,12 @@ def update_webinar(data: dict):
         except:
             print("Exception");
             continue
-
+    
     mail_success = 0
     print("Registered emails : ")
     print(registered_emails)
     print(len(registered_emails), len(join_urls))
+    '''
     for i in range(len(registered_emails)):
         email = registered_emails[i]
         join_url = join_urls[i]
@@ -322,9 +323,10 @@ def update_webinar(data: dict):
         print("Mail status : ")
         print(status)
         print(body)
-
+        
         # Succès
         if status == 202: mail_succes += 1
+    '''
     
     return {
         "status": status,
