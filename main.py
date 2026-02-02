@@ -296,7 +296,10 @@ def update_webinar(data: dict):
             "registered": 0,
             "requested": len(data["emails"])
         }
-
+        
+    success = []
+    errors = []
+    
     for email, name in zip(data["emails"], data["names"]):
         try:
             result = register_participant(token, webinar_id, email, name)
