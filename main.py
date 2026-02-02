@@ -90,7 +90,7 @@ def register_emails_csv(token, webinar_id, csv_buffer):
 # ------------------------
 # REGISTER EMAIL
 # ------------------------
-def register_email(token, webinar_id, email, name):
+def register_participant(token, webinar_id, email, name):
     print("Register email start function")
     headers = {
         "Authorization": f"Bearer {token}",
