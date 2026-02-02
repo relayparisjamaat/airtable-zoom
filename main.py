@@ -116,6 +116,7 @@ def register_email(token, webinar_id, email, name):
         "first_name": firstname,
         "last_name": lastname,
     }
+    
     print("Register email payload")
     r = requests.post(
         f"https://api.zoom.us/v2/webinars/{webinar_id}/registrants",
@@ -125,6 +126,30 @@ def register_email(token, webinar_id, email, name):
     print("Register result")
     print(r)
     print(r.status_code)
+
+    # ❌ erreur Zoom
+    if r.status_code != 201:
+        try:
+            error_msg = r.json().get("message", r.text)
+        except Exception:
+            error_msg = r.text
+
+        return {
+            "success": False,
+            "email": email,
+            "name": name,
+            "status_code": r.status_code + " : " + error_msg,
+        }
+
+    # ✅ succès
+    data = r.json()
+    return {
+        "success": True,
+        "email": email,
+        "name": name,
+        "join_url": data.get("join_url")
+    }
+    
     return r
 
 # ------------------------
@@ -260,9 +285,7 @@ def wakeup():
 def update_webinar(data: dict):
     token = get_zoom_token()
     webinar_id = data["webinar_id"]
-    webinar_name = data["webinar_name"] 
-    webinar_date = data["webinar_date"]
-    webinar_time = data["webinar_time"]
+
     registered_emails = []
     join_urls = []
     
@@ -274,34 +297,45 @@ def update_webinar(data: dict):
             "requested": len(data["emails"])
         }
 
-    success = 0
-    status = "ok"
-    for i in range(len(data["emails"])):
-        email = data["emails"][i]
-        name = data["names"][i]
+    for email, name in zip(data["emails"], data["names"]):
         try:
-            print("Trying to register")
-            print(name + " " + email)
-            r = register_email(token, webinar_id, email, name)
-            print("Register : ")
-            print(r)
-            if r.status_code == 201 :
-                print("Success")
-                success += 1
-                registered_emails.append(email)
-                join_urls.append(r.json()["join_url"])
-            else :
-                print("Fail")
-                status = r.text
-        except:
-            print("Exception");
-            continue
+            result = register_participant(token, webinar_id, email, name)
+
+            if result["success"]:
+                success.append({
+                    "email": result["email"],
+                    "name": result["name"],
+                    "join_url": result["join_url"]
+                })
+            else:
+                errors.append({
+                    "email": result["email"],
+                    "name": result["name"],
+                    "status_code": result["status_code"],
+                    "error": result["error"]
+                })
+
+        except Exception as e:
+            errors.append({
+                "email": email,
+                "name": name,
+                "status_code": 500,
+                "error": str(e)
+            })
+
+    return {
+        "status": "ok",
+        "webinar_id": webinar_id,
+        "success": success,
+        "errors": errors
+    }
     
+    '''
     mail_success = 0
     print("Registered emails : ")
     print(registered_emails)
     print(len(registered_emails), len(join_urls))
-    '''
+    
     for i in range(len(registered_emails)):
         email = registered_emails[i]
         join_url = join_urls[i]
@@ -326,8 +360,7 @@ def update_webinar(data: dict):
         
         # Succès
         if status == 202: mail_succes += 1
-    '''
-    
+
     return {
         "status": status,
         "webinar_id": webinar_id,
@@ -335,7 +368,8 @@ def update_webinar(data: dict):
         "requested": len(data["emails"]),
         "emails_sent": mail_success,
     }
-
+    '''
+    
 # --------------------------------------------------
 # Création du webinaire
 # --------------------------------------------------
