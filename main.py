@@ -296,6 +296,7 @@ def update_webinar(data: dict):
     errors = []
     
     for email, name in zip(data["emails"], data["names"]):
+        print(email, " ", name)
         try:
             result = register_participant(token, webinar_id, email, name)
 
@@ -305,6 +306,7 @@ def update_webinar(data: dict):
                     "name": result["name"],
                     "join_url": result["join_url"]
                 })
+                print("success")
             else:
                 errors.append({
                     "email": result["email"],
@@ -312,6 +314,7 @@ def update_webinar(data: dict):
                     "status_code": result["status_code"],
                     "error": result["error"]
                 })
+                print("fail")
 
         except Exception as e:
             errors.append({
@@ -320,6 +323,7 @@ def update_webinar(data: dict):
                 "status_code": 500,
                 "error": str(e)
             })
+            print("exception : ", str(e))
 
     return {
         "status": "ok",
