@@ -133,7 +133,8 @@ def register_participant(token, webinar_id, email, name):
             "success": False,
             "email": email,
             "name": name,
-            "status_code": str(r.status_code) + " : " + error_msg,
+            "status_code": str(r.status_code),
+            "error": str(r.status_code) + " : " + error_msg
         }
 
     # ✅ succès
