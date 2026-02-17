@@ -307,7 +307,7 @@ def update_webinar(data: dict):
                     "name": result["name"],
                     "join_url": result["join_url"]
                 })
-                print("success" : result["join_url"])
+                print("success : ", result["join_url"])
             else:
                 errors.append({
                     "email": result["email"],
