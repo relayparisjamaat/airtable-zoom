@@ -307,7 +307,7 @@ def update_webinar(data: dict):
                     "name": result["name"],
                     "join_url": result["join_url"]
                 })
-                print("success")
+                print("success" : result["join_url"])
             else:
                 errors.append({
                     "email": result["email"],
@@ -315,7 +315,7 @@ def update_webinar(data: dict):
                     "status_code": result["status_code"],
                     "error": result["error"]
                 })
-                print("fail")
+                print("fail : ", result["error"])
 
         except Exception as e:
             errors.append({
