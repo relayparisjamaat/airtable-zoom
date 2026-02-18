@@ -48,44 +48,6 @@ def get_zoom_token():
     )
     r.raise_for_status()
     return r.json()["access_token"]
-
-# ------------------------
-# GENERATE CSV
-# ------------------------
-def build_zoom_csv(emails, names):
-    buffer = io.StringIO()
-    writer = csv.writer(buffer)
-
-    writer.writerow(["email", "first_name", "last_name"])
-
-    for email, name in zip(emails, names):
-        parts = name.split()
-        first_name = parts[0] if parts else "Prénom"
-        last_name = " ".join(parts[1:]) if len(parts) > 1 else "Nom"
-
-        writer.writerow([email, first_name, last_name])
-
-    buffer.seek(0)
-    return buffer
-
-def register_emails_csv(token, webinar_id, csv_buffer):
-    headers = {
-        "Authorization": f"Bearer {token}",
-    }
-
-    files = {
-        "file": ("registrants.csv", csv_buffer.getvalue(), "text/csv")
-    }
-
-    r = requests.post(
-        f"https://api.zoom.us/v2/webinars/{webinar_id}/registrants/import",
-        headers=headers,
-        files=files,
-        timeout=30
-    )
-
-    r.raise_for_status()
-    return r.json()
     
 # ------------------------
 # REGISTER EMAIL
@@ -145,119 +107,6 @@ def register_participant(token, webinar_id, email, name):
         "name": name,
         "join_url": data.get("join_url")
     }
-    
-    return r
-
-# ------------------------
-# SEND EMAIL
-# ------------------------
-HTML_TEMPLATE = """<!DOCTYPE html>
-<html>
-<body style="margin:0;padding:0;background-color:#f4f6f8;font-family:Arial,Helvetica,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0">
-    <tr>
-      <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;padding:24px;">
-          <tr>
-            <td>
-              <h2 style="margin:0 0 16px 0;font-weight:600;color:#222;">
-                Inscription confirmée
-              </h2>
-
-              <p style="margin:0 0 16px 0;color:#333;">
-                Votre inscription au webinaire suivant est confirmée :
-              </p>
-
-              <p style="margin:0 0 12px 0;font-size:16px;">
-                <strong>{{WEBINAR_NAME}}</strong>
-              </p>
-
-              <p style="margin:0 0 20px 0;color:#333;">
-                <strong>Date :</strong> {{DATE}}<br>
-                <strong>Heure :</strong> {{TIME}} (heure de Paris)
-              </p>
-
-              <table cellpadding="0" cellspacing="0" align="center">
-                <tr>
-                  <td style="background:#0e72ed;border-radius:4px;">
-                    <a href="{{JOIN_URL}}"
-                       style="display:inline-block;padding:12px 24px;
-                              color:#ffffff;text-decoration:none;
-                              font-weight:600;">
-                      Rejoindre le webinaire
-                    </a>
-                  </td>
-                </tr>
-              </table>
-
-              <p style="margin:24px 0 0 0;font-size:12px;color:#777;">
-                Ce message a été envoyé automatiquement. Merci de ne pas y répondre.
-              </p>
-
-            </td>
-          </tr>
-        </table>
-
-        <p style="font-size:11px;color:#999;margin:12px 0;">
-          © Zoom Video Communications, Inc. – Notification automatisée
-        </p>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-"""
-
-def render_html(template, data):
-    for k, v in data.items():
-        template = template.replace(f"{{{{{k}}}}}", v)
-    return template
-    
-def build_text_version(data):
-    return f"""Inscription confirmée
-    
-    Webinaire : {data["WEBINAR_NAME"]}
-    Date : {data["DATE"]}
-    Heure : {data["TIME"]} (heure de Paris)
-    Lien : {data["JOIN_URL"]}
-    
-    Ceci est un message automatique.
-    """
-    
-def send_confirmation_email(to_email, subject, data):
-    print("Start email function")
-    html_content = render_html(HTML_TEMPLATE, data)
-    print("HTML generated")
-    text_content = build_text_version(data)
-    print("Text content")
-
-    payload = {
-        "personalizations": [
-            {
-                "to": [{"email": to_email}],
-                "subject": subject
-            }
-        ],
-        "from": {
-            "email": "relay.parisjamaat@gmail.com",
-            "name": "Relay Paris Jamaat"
-        },
-        "content": [
-            {"type": "text/plain", "value": text_content},
-            {"type": "text/html", "value": html_content}
-        ]
-    }
-    print("Payload done")
-    
-    r = requests.post(
-        "https://api.sendgrid.com/v3/mail/send",
-        headers={
-            "Authorization": f"Bearer {os.getenv("SENDGRID_API_KEY")}",
-            "Content-Type": "application/json"
-        },
-        json=payload,
-        timeout=10
-    )
     
     return r
 
@@ -333,46 +182,6 @@ def update_webinar(data: dict):
         "errors": errors
     }
     
-    '''
-    mail_success = 0
-    print("Registered emails : ")
-    print(registered_emails)
-    print(len(registered_emails), len(join_urls))
-    
-    for i in range(len(registered_emails)):
-        email = registered_emails[i]
-        join_url = join_urls[i]
-        print("Trying to send email to " + email + " with link " + join_url)
-        r = send_confirmation_email(to_email=email, subject="[RELAY] Inscription confirmée : " + webinar_name, data={
-            "WEBINAR_NAME": webinar_name,
-            "DATE": webinar_date,
-            "TIME": webinar_time,
-            "JOIN_URL": join_url}
-        )
-        print("Raw result : ")
-        print(r)
-        try:
-            body = r.json()
-        except ValueError:
-            body = {"message": response.text}
-
-        status = response.status_code
-        print("Mail status : ")
-        print(status)
-        print(body)
-        
-        # Succès
-        if status == 202: mail_succes += 1
-
-    return {
-        "status": status,
-        "webinar_id": webinar_id,
-        "registered": len(registered_emails),
-        "requested": len(data["emails"]),
-        "emails_sent": mail_success,
-    }
-    '''
-    
 # --------------------------------------------------
 # Création du webinaire
 # --------------------------------------------------
@@ -443,20 +252,88 @@ def create_webinar(data: dict):
     return {"status": "ok", "webinar_id": webinar["id"],}
 
 # --------------------------------------------------
-# Ajout des participants en csv
+# Obtention des liens de connexion pour participants déjà enregistrés
 # --------------------------------------------------
-@app.api_route("/add-registrants-csv", methods=["POST", "GET"])
-def add_registrants_csv(data: dict):
-    token = get_zoom_token()
+@app.post("/get-join-urls")
+def get_join_urls(data: dict):
+
+    token = get_zoom_access_token()
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+
     webinar_id = data["webinar_id"]
-    
-    csv_buffer = build_zoom_csv(data["emails"], data["names"])
-    
-    result = register_emails_csv(token, webinar_id, csv_buffer)
-    
+
+    success = []
+    errors = []
+
+    for email in data["emails"]:
+        try:
+            url = f"https://api.zoom.us/v2/webinars/{webinar_id}/registrants",
+            
+            params = {
+                "email": email
+            }
+
+            r = requests.get(url, headers=headers, params=params)
+
+            # ===============================
+            # GESTION ERREURS HTTP
+            # ===============================
+            if r.status_code == 200:
+                response_data = r.json()
+
+                if response_data.get("total_records", 0) > 0:
+                    registrant = response_data["registrants"][0]
+
+                    success.append({
+                        "email": email,
+                        "join_url": registrant.get("join_url"),
+                        "registrant_id": registrant.get("id")
+                    })
+                else:
+                    errors.append({
+                        "email": email,
+                        "status_code": 404,
+                        "error": "Registrant not found"
+                    })
+
+            elif r.status_code == 401:
+                errors.append({
+                    "email": email,
+                    "status_code": 401,
+                    "error": "Unauthorized (invalid or expired token)"
+                })
+
+            elif r.status_code == 404:
+                errors.append({
+                    "email": email,
+                    "status_code": 404,
+                    "error": "Webinar not found"
+                })
+
+            elif r.status_code == 429:
+                errors.append({
+                    "email": email,
+                    "status_code": 429,
+                    "error": "Rate limit exceeded"
+                })
+
+            else:
+                errors.append({
+                    "email": email,
+                    "status_code": r.status_code,
+                    "error": r.text
+                })
+
+        except Exception as e:
+            errors.append({
+                "email": email,
+                "status_code": 500,
+                "error": str(e)
+            })
+
     return {
-        "status": "ok",
-        "webinar_id": webinar_id,
-        "registered": result.get("total_records", 0),
-        "requested": len(data["emails"])
+        "success": success,
+        "errors": errors
     }
