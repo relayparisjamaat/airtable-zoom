@@ -267,6 +267,9 @@ def create_webinar(data: dict):
         "Content-Type": "application/json",
     }
 
+    print("Webinar creation data : ")
+    print(data)
+    
     payload = {
         "topic": data["name"],
         "type": 5,  # Scheduled webinar (not a periodic one)
