@@ -10,6 +10,8 @@ import csv
 import io
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
 
 # --------------------------------------------------
 # Configuration logging (logs visibles dans Render)
@@ -126,7 +128,7 @@ def wakeup():
 # --------------------------------------------------
 # Mise à jour du webinaire
 # --------------------------------------------------
-@app.api_route("/update-webinar", methods=["POST", "GET"])
+'''@app.api_route("/update-webinar", methods=["POST", "GET"])
 def update_webinar(data: dict):
     token = get_zoom_token()
     webinar_id = data["webinar_id"]
@@ -181,7 +183,78 @@ def update_webinar(data: dict):
         "success": success,
         "errors": errors
     }
-    
+'''  
+
+@app.post("/update-webinar")
+def update_webinar(data: dict):
+
+    token = get_zoom_token()
+    webinar_id = data["webinar_id"]
+
+    if not webinar_id:
+        return {
+            "status": "webinar_not_found",
+            "webinar_id": webinar_id,
+            "registered": 0,
+            "requested": len(data["emails"])
+        }
+
+    success = []
+    errors = []
+
+    participants = list(zip(data["emails"], data["names"]))
+
+    MAX_WORKERS = 8  # 🔥 5 à 10 recommandé pour éviter 429
+
+    def worker(email, name):
+        retry = 0
+
+        while retry < 3:
+            result = register_participant(token, webinar_id, email, name)
+
+            if result["success"]:
+                return ("success", result)
+
+            if result.get("status_code") == "429":
+                retry += 1
+                time.sleep(1.5)
+                continue
+
+            return ("error", result)
+
+        return ("error", result)
+
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+
+        futures = [
+            executor.submit(worker, email, name)
+            for email, name in participants
+        ]
+
+        for future in as_completed(futures):
+            status, result = future.result()
+
+            if status == "success":
+                success.append({
+                    "email": result["email"],
+                    "name": result["name"],
+                    "join_url": result["join_url"]
+                })
+            else:
+                errors.append({
+                    "email": result["email"],
+                    "name": result["name"],
+                    "status_code": result.get("status_code"),
+                    "error": result.get("error")
+                })
+
+    return {
+        "status": "ok",
+        "webinar_id": webinar_id,
+        "success": success,
+        "errors": errors
+    }
+
 # --------------------------------------------------
 # Création du webinaire
 # --------------------------------------------------
@@ -249,15 +322,16 @@ def create_webinar(data: dict):
 
     webinar = r.json()
 
-    return {"status": "ok", "webinar_id": webinar["id"],}
+    return {"status": "ok", "webinar_id": webinar["id"]}
 
 # --------------------------------------------------
 # Obtention des liens de connexion pour participants déjà enregistrés
 # --------------------------------------------------
+'''
 @app.post("/get-join-urls")
 def get_join_urls(data: dict):
 
-    token = get_zoom_access_token()
+    token = get_zoom_token()
     headers = {
         "Authorization": f"Bearer {token}"
     }
@@ -337,3 +411,95 @@ def get_join_urls(data: dict):
         "success": success,
         "errors": errors
     }
+'''
+@app.post("/get-join-urls")
+def get_join_urls(data: dict):
+
+    token = get_zoom_token()
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+
+    webinar_id = data["webinar_id"]
+    requested_emails = [email.lower() for email in data["emails"]]
+
+    success = []
+    errors = []
+
+    try:
+        all_registrants = []
+        next_page_token = ""
+
+        # ===============================
+        # PAGINATION ZOOM (300 max/page)
+        # ===============================
+        while True:
+            url = f"https://api.zoom.us/v2/webinars/{webinar_id}/registrants"
+
+            params = {
+                "page_size": 300,
+                "next_page_token": next_page_token
+            }
+
+            r = requests.get(url, headers=headers, params=params)
+
+            if r.status_code != 200:
+                return {
+                    "success": [],
+                    "errors": [{
+                        "status_code": r.status_code,
+                        "error": r.text
+                    }]
+                }
+
+            response_data = r.json()
+
+            registrants = response_data.get("registrants", [])
+            all_registrants.extend(registrants)
+
+            next_page_token = response_data.get("next_page_token", "")
+            if not next_page_token:
+                break
+
+        # ===============================
+        # CREATION DICTIONNAIRE EMAIL
+        # ===============================
+        registrant_map = {
+            r["email"].lower(): r
+            for r in all_registrants
+        }
+
+        # ===============================
+        # MATCH DEMANDE
+        # ===============================
+        for email in requested_emails:
+
+            if email in registrant_map:
+                registrant = registrant_map[email]
+
+                success.append({
+                    "email": email,
+                    "join_url": registrant.get("join_url"),
+                    "registrant_id": registrant.get("id")
+                })
+
+            else:
+                errors.append({
+                    "email": email,
+                    "status_code": 404,
+                    "error": "Registrant not found"
+                })
+
+        return {
+            "success": success,
+            "errors": errors
+        }
+
+    except Exception as e:
+        return {
+            "success": [],
+            "errors": [{
+                "status_code": 500,
+                "error": str(e)
+            }]
+        }
