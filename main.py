@@ -4,14 +4,10 @@ import logging
 import os
 import json
 from datetime import datetime, timezone
-import socket
-from pydantic import BaseModel
-import csv
 import io
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
+import pytz
 
 # --------------------------------------------------
 # Configuration logging (logs visibles dans Render)
@@ -39,15 +35,8 @@ ZOOM_CLIENT_SECRET = os.getenv("ZOOM_CLIENT_SECRET")
 # ------------------------
 def get_zoom_token():
     url = "https://zoom.us/oauth/token"
-    payload = {
-        "grant_type": "account_credentials",
-        "account_id": ZOOM_ACCOUNT_ID
-    }
-    r = requests.post(
-        url,
-        params=payload,
-        auth=(ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET)
-    )
+    payload = {"grant_type": "account_credentials", "account_id": ZOOM_ACCOUNT_ID}
+    r = requests.post(url, params=payload, auth=(ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET))
     r.raise_for_status()
     return r.json()["access_token"]
     
@@ -55,10 +44,7 @@ def get_zoom_token():
 # REGISTER EMAIL
 # ------------------------
 def register_participant(token, webinar_id, email, name):
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
     # Vérification de différents cas sur le nom prénom sinon le processus va planter. name est censé contenir : "Prénom Nom"
     if(len(name.split()) == 1) :
@@ -74,49 +60,28 @@ def register_participant(token, webinar_id, email, name):
         firstname = "Prénom"
         lastname = "Nom"
 
-    payload = {
-        "email": email,
-        "first_name": firstname,
-        "last_name": lastname,
-    }
-    
-    r = requests.post(
-        f"https://api.zoom.us/v2/webinars/{webinar_id}/registrants",
-        headers=headers,
-        json=payload
-    )
+    payload = {"email": email, "first_name": firstname, "last_name": lastname,}
 
-    # ❌ erreur Zoom
+    try :
+        r = requests.post(f"https://api.zoom.us/v2/webinars/{webinar_id}/registrants", headers=headers,json=payload)
+    except Exception as e:
+        return {"success": False, "email": email, "name": name, "status_code": 500, "error": str(e)}    
+
+    # erreur Zoom
     if r.status_code != 201:
-        try:
-            error_msg = r.json().get("message", r.text)
-        except Exception:
-            error_msg = r.text
+        try: error_msg = r.json().get("message", r.text)
+        except Exception: error_msg = r.text
+        return {"success": False, "email": email, "name": name, "status_code": str(r.status_code), "error": error_msg}
 
-        return {
-            "success": False,
-            "email": email,
-            "name": name,
-            "status_code": str(r.status_code),
-            "error": error_msg
-        }
-
-    # ✅ succès
+    # succès
     data = r.json()
-    return {
-        "success": True,
-        "email": email,
-        "name": name,
-        "join_url": data.get("join_url")
-    }
-    
-    return r
+    return { "success": True, "email": email, "name": name, "join_url": data.get("join_url")}
 
-# ------------------------------------------------
-# ------------------------------------------------
-#             MAIN CODE : WEB ROUTES
-# ------------------------------------------------
-# ------------------------------------------------
+# ------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------
+#                                     MAIN CODE : WEB ROUTES
+# ------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------
 
 # --------------------------------------------------
 # Healthcheck endpoint (obligatoire pour Render)
@@ -126,65 +91,68 @@ def wakeup():
     return {"status": "ok"}
 
 # --------------------------------------------------
+# Fetch upcoming webinars
+# --------------------------------------------------
+@app.post("/fetch-upcoming-webinars")
+def fetch_upcoming_webinars():
+
+    token = get_zoom_token()
+
+    headers = {"Authorization": f"Bearer {token}"}
+
+    paris_tz = pytz.timezone("Europe/Paris")
+    now_paris = datetime.now(paris_tz)
+
+    webinars_list = []
+    next_page_token = ""
+
+    try:
+        # PAGINATION ZOOM
+        while True:
+
+            url = "https://api.zoom.us/v2/users/me/webinars"
+
+            params = {"type": "upcoming", "page_size": 300, "next_page_token": next_page_token}
+
+            r = requests.get(url, headers=headers, params=params, timeout=15)
+
+            if r.status_code != 200:
+                return {"status": "error","zoom_status": r.status_code, "zoom_response": r.text}
+
+            data = r.json()
+            webinars = data.get("webinars", [])
+
+            for webinar in webinars:
+                start_time_utc = datetime.strptime(
+                    webinar["start_time"],
+                    "%Y-%m-%dT%H:%M:%SZ"
+                ).replace(tzinfo=pytz.utc)
+
+                start_time_paris = start_time_utc.astimezone(paris_tz)
+
+                # Filtrer ≥ aujourd'hui
+                if start_time_paris >= now_paris:
+                    formatted_date = start_time_paris.strftime("%d/%m/%Y %H:%M")
+                    webinars_list.append({
+                        "Name": webinar.get("topic"),
+                        "Webinar ID": webinar.get("id"),
+                        "Date": formatted_date,
+                        "Duration": webinar.get("duration"),
+                        "Recording": "Oui" if webinar.get("settings", {}).get("auto_recording") == "cloud" else "Non",
+                        "Diffusion": "Sur inscription" if webinar.get("settings", {}).get("registration_type") == 1 else "Public"
+                    })
+
+            next_page_token = data.get("next_page_token", "")
+            if not next_page_token:
+                break
+
+        return {"status": "ok", "count": len(webinars_list), "webinars": webinars_list}
+
+    except Exception as e: return {"status": "error", "message": str(e)}
+        
+# --------------------------------------------------
 # Mise à jour du webinaire
 # --------------------------------------------------
-'''@app.api_route("/update-webinar", methods=["POST", "GET"])
-def update_webinar(data: dict):
-    token = get_zoom_token()
-    webinar_id = data["webinar_id"]
-
-    registered_emails = []
-    join_urls = []
-    
-    if not webinar_id:
-        return {
-            "status": "webinar_not_found",
-            "webinar_id": webinar_id,
-            "registered": 0,
-            "requested": len(data["emails"])
-        }
-        
-    success = []
-    errors = []
-    
-    for email, name in zip(data["emails"], data["names"]):
-        print(email, " ", name)
-        try:
-            result = register_participant(token, webinar_id, email, name)
-
-            if result["success"]:
-                success.append({
-                    "email": result["email"],
-                    "name": result["name"],
-                    "join_url": result["join_url"]
-                })
-                print("success : ", result["join_url"])
-            else:
-                errors.append({
-                    "email": result["email"],
-                    "name": result["name"],
-                    "status_code": result["status_code"],
-                    "error": result["error"]
-                })
-                print("fail : ", result["error"])
-
-        except Exception as e:
-            errors.append({
-                "email": email,
-                "name": name,
-                "status_code": 500,
-                "error": str(e)
-            })
-            print("exception : ", str(e))
-
-    return {
-        "status": "ok",
-        "webinar_id": webinar_id,
-        "success": success,
-        "errors": errors
-    }
-'''  
-
 @app.post("/update-webinar")
 def update_webinar(data: dict):
 
@@ -204,7 +172,7 @@ def update_webinar(data: dict):
 
     participants = list(zip(data["emails"], data["names"]))
 
-    MAX_WORKERS = 8  # 🔥 5 à 10 recommandé pour éviter 429
+    MAX_WORKERS = 8  # 5 à 10 recommandé pour éviter 429
 
     def worker(email, name):
         retry = 0
@@ -262,13 +230,7 @@ def update_webinar(data: dict):
 def create_webinar(data: dict):
     token = get_zoom_token()
     
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-    }
-
-    print("Webinar creation data : ")
-    print(data)
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     
     payload = {
         "topic": data["name"],
@@ -304,9 +266,6 @@ def create_webinar(data: dict):
             },
         },
     }
-
-    print("Payload for meeting creation : ")
-    print(payload)
 
     r = requests.post(
         "https://api.zoom.us/v2/users/me/webinars",
@@ -415,6 +374,7 @@ def get_join_urls(data: dict):
         "errors": errors
     }
 '''
+
 @app.post("/get-join-urls")
 def get_join_urls(data: dict):
 
