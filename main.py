@@ -131,16 +131,16 @@ def fetch_upcoming_webinars():
                 start_time_paris = start_time_utc.astimezone(paris_tz)
 
                 # Filtrer ≥ aujourd'hui
-                if start_time_paris >= now_paris:
-                    formatted_date = start_time_paris.strftime("%d/%m/%Y %H:%M")
-                    webinars_list.append({
-                        "Name": webinar.get("topic"),
-                        "Webinar ID": webinar.get("id"),
-                        "Date": formatted_date,
-                        "Duration": webinar.get("duration"),
-                        "Recording": "Oui" if webinar.get("settings", {}).get("auto_recording") == "cloud" else "Non",
-                        "Diffusion": "Sur inscription" if webinar.get("settings", {}).get("registration_type") == 1 else "Public"
-                    })
+                #if start_time_paris >= now_paris:
+                formatted_date = start_time_paris.strftime("%d/%m/%Y %H:%M")
+                webinars_list.append({
+                    "Name": webinar.get("topic"),
+                    "Webinar ID": webinar.get("id"),
+                    "Date": formatted_date,
+                    "Duration": webinar.get("duration"),
+                    "Recording": "Oui" if webinar.get("settings", {}).get("auto_recording") == "cloud" else "Non",
+                    "Diffusion": "Sur inscription" if webinar.get("settings", {}).get("registration_type") == 1 else "Public"
+                })
 
             next_page_token = data.get("next_page_token", "")
             if not next_page_token:
